@@ -79,7 +79,7 @@ services:
         echo "sites/common_site_config.json found";
         bench new-site --mariadb-user-host-login-scope='%' --admin-password=${SITE_ADMIN_PASSWORD_OAN_A2C} --db-root-username=root --db-root-password=${MARIADB_ROOT_PASSWORD} --install-app oan_a2c --set-default ${SITE_NAME};
         bench --site ${SITE_NAME} set-config host_name ${HOST_NAME};
-       
+
   db:
     image: mariadb:10.6
     networks:
@@ -206,12 +206,73 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
 
+  kong-db:
+    image: postgres:15
+    networks:
+      - frappe_network
+    environment:
+      POSTGRES_DB: kong
+      POSTGRES_USER: kong
+      POSTGRES_PASSWORD: ${KONG_DB_PASSWORD}
+    volumes:
+      - kong-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "kong"]
+      interval: 10s
+      retries: 5
+    deploy:
+      restart_policy:
+        condition: on-failure
+
+  kong-migration:
+    image: kong:3.6
+    networks:
+      - frappe_network
+    command: kong migrations bootstrap
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-db
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: ${KONG_DB_PASSWORD}
+      KONG_PG_DATABASE: kong
+    depends_on:
+      - kong-db
+    deploy:
+      restart_policy:
+        condition: on-failure
+
+  kong:
+    image: kong:3.6
+    networks:
+      - frappe_network
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-db
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: ${KONG_DB_PASSWORD}
+      KONG_PG_DATABASE: kong
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+    depends_on:
+      - kong-db
+      - kong-migration
+    deploy:
+      restart_policy:
+        condition: on-failure
+
 volumes:
   db-data:
   redis-queue-data:
   sites:
   logs:
   assets:
+  kong-db-data:
 
 networks:
   frappe_network:

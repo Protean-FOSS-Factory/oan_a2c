@@ -1,0 +1,52 @@
+
+name: Deploy to Backend VM
+
+on:
+  workflow_dispatch: 
+  repository_dispatch:
+    types: [jenkins-build-success]
+
+env:
+  AWS_REGION: ap-south-1
+  AWS_ACCOUNT_ID: 379220350808
+  ECR_REPO: oan-a2c
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: aws
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
+
+      - name: Deploy to backend VM
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.BACKEND_PRIVATE_IP }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          proxy_host: ${{ secrets.BASTION_IP }}
+          proxy_username: ubuntu
+          proxy_key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /opt/oan_a2c
+
+            # Login to ECR
+            aws ecr get-login-password --region ap-south-1 | \
+              sudo docker login --username AWS --password-stdin \
+              379220350808.dkr.ecr.ap-south-1.amazonaws.com
+
+            # Pull latest image
+            sudo docker compose pull
+
+            # Restart services with new image
+            sudo docker compose up -d --no-deps --force-recreate \
+              backend frontend websocket queue-short queue-long scheduler
+
+            echo "Deployment complete"
+            sudo docker compose ps
