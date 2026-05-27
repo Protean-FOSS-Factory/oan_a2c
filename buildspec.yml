@@ -1,0 +1,59 @@
+version: 0.2
+
+env:
+  variables:
+    # AWS_DEFAULT_REGION: "ap-south-1"
+    # AWS_ACCOUNT_ID: ""
+    # ECR_REPO: "oan-a2c"
+    FRAPPE_BRANCH: "version-16"
+    FRAPPE_PATH: "https://github.com/frappe/frappe"
+  parameter-store:
+    GITHUB_TOKEN: "/oan_a2c/github-token"
+
+phases:
+  pre_build:
+    commands:
+      - echo "Logging in to Amazon ECR..."
+      - "aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com"
+      - echo "Checking apps.json..."
+      - |
+        if [ -f apps.json ]; then
+            echo "Processing apps.json..."
+            # Replace placeholder with actual token from env
+            sed "s/<GITHUB_TOKEN>/$GITHUB_TOKEN/g" apps.json > apps_processed.json
+            export APPS_JSON_BASE64=$(base64 -w 0 apps_processed.json)
+            rm apps_processed.json
+        else
+            echo "Error: apps.json not found"
+            exit 1
+        fi
+      - export BUILD_VERSION="1.0.$CODEBUILD_BUILD_NUMBER"
+      - export IMAGE_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO"
+      - echo "Build Version - $BUILD_VERSION"
+      - echo "Image URI - $IMAGE_URI"
+
+  build:
+    commands:
+      - echo "Build started on `date`"
+      - echo "Building Docker Image..."
+      - |
+        docker build \
+          --build-arg FRAPPE_PATH=$FRAPPE_PATH \
+          --build-arg FRAPPE_BRANCH=$FRAPPE_BRANCH \
+          --build-arg APPS_JSON_BASE64=$APPS_JSON_BASE64 \
+          --tag $IMAGE_URI:$BUILD_VERSION \
+          --tag $IMAGE_URI:latest \
+          --file images/layered/Containerfile .
+
+  post_build:
+    commands:
+      - echo "Build completed on `date`"
+      - echo "Pushing Docker Image to ECR..."
+      - "docker push $IMAGE_URI:$BUILD_VERSION"
+      - "docker push $IMAGE_URI:latest"
+      - echo "Writing image definitions file..."
+      - printf '[{"name":"frappe-docker","imageUri":"%s"}]' $IMAGE_URI:$BUILD_VERSION > imagedefinitions.json
+
+artifacts:
+  files:
+    - imagedefinitions.json
