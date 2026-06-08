@@ -1,0 +1,208 @@
+{
+ "actions": [],
+ "autoname": "format:LD-{#####}",
+ "creation": "2026-05-19 00:00:00",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "phone_number",
+  "lead_source",
+  "status",
+  "assigned_to",
+  "section_notes",
+  "call_notes",
+  "fayda_id",
+  "consent_status",
+  "consent_request",
+  "consent_receipt",
+  "consent_data",
+  "loan_type",
+  "loan_amount",
+  "purpose_message",
+  "first_name",
+  "last_name",
+  "email",
+  "location",
+  "region",
+  "zone",
+  "woreda",
+  "agent_id",
+  "external_id"
+ ],
+ "fields": [
+  {
+   "fieldname": "phone_number",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Phone Number",
+   "options": "Phone",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "default": "Missed Call",
+   "fieldname": "lead_source",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Source",
+   "options": "Missed Call\nIVR\nSMS\nAgent Entry",
+   "reqd": 1
+  },
+  {
+   "default": "Open",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Lead Status",
+   "options": "Open\nInitiated\nQualified\nProcessed\nRejected\nContacted\nInterested\nNot Interested\nConverted",
+   "reqd": 1
+  },
+  {
+   "fieldname": "assigned_to",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Assigned Agent",
+   "options": "User"
+  },
+  {
+   "fieldname": "section_notes",
+   "fieldtype": "Section Break",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "call_notes",
+   "fieldtype": "Text",
+   "label": "Initial Call Notes"
+  },
+  {
+   "fieldname": "fayda_id",
+   "fieldtype": "Data",
+   "label": "Fayda ID"
+  },
+  {
+   "fieldname": "consent_status",
+   "fieldtype": "Select",
+   "label": "Consent Status",
+   "options": "\nPending\nApproved\nRejected"
+  },
+  {
+   "fieldname": "consent_request",
+   "fieldtype": "Data",
+   "label": "Consent Request"
+  },
+  {
+   "fieldname": "consent_receipt",
+   "fieldtype": "Data",
+   "label": "Consent Receipt"
+  },
+  {
+   "fieldname": "consent_data",
+   "fieldtype": "Code",
+   "label": "Consent Data",
+   "options": "JSON",
+   "read_only": 1
+  },
+  {
+   "fieldname": "loan_type",
+   "fieldtype": "Data",
+   "label": "Loan Type"
+  },
+  {
+   "fieldname": "loan_amount",
+   "fieldtype": "Currency",
+   "label": "Loan Amount",
+   "options": "ETB"
+  },
+  {
+   "fieldname": "purpose_message",
+   "fieldtype": "Data",
+   "label": "Purpose Message"
+  },
+  {
+   "fieldname": "first_name",
+   "fieldtype": "Data",
+   "label": "First Name"
+  },
+  {
+   "fieldname": "last_name",
+   "fieldtype": "Data",
+   "label": "Last Name"
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email ID"
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Data",
+   "label": "Location"
+  },
+  {
+   "fieldname": "region",
+   "fieldtype": "Data",
+   "label": "Region"
+  },
+  {
+   "fieldname": "zone",
+   "fieldtype": "Data",
+   "label": "Zone"
+  },
+  {
+   "fieldname": "woreda",
+   "fieldtype": "Data",
+   "label": "Woreda"
+  },
+  {
+   "fieldname": "agent_id",
+   "fieldtype": "Data",
+   "label": "Agent ID"
+  },
+  {
+   "fieldname": "external_id",
+   "fieldtype": "Data",
+   "label": "External ID"
+  }
+ ],
+ "links": [],
+ "modified": "2026-06-05 15:11:30.059188",
+ "modified_by": "Administrator",
+ "module": "OpenAgriNet Access to Credit",
+ "name": "A2C Lead",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "read": 1,
+   "role": "Development Agent",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Bank Agent"
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "phone_number",
+ "track_changes": 1
+}

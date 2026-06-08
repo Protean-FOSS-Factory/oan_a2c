@@ -1,0 +1,207 @@
+{
+	"info": {
+		"_postman_id": "a2c-consent-v2",
+		"name": "OAN A2C - Consent Management API",
+		"description": "All consent lifecycle APIs in order. These cover the full Fayda OTP consent flow used in the Lead screen and the Loan Application wizard Step 1.\n\nFlow order:\n1. Send OTP & Create Consent (enter Fayda ID → OTP sent to farmer's phone)\n2. Verify OTP (farmer reads OTP → agent enters it → consent approved)\n3. Get Consent Data (fetch verified farmer profile for UI display)\n4. Receive Consent Data Webhook (OpenG2P pushes data back → Frappe stores it)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Send OTP & Create Consent Request",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{jwt_token}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"fayda_id\": \"FAYDA-ETH-123456\",\n    \"partner\": \"Cooperative Bank of Oromia\",\n    \"loan_application\": \"{{application_id}}\",\n    \"purpose\": \"Loan for seeds and fertilizer\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/method/oan_a2c.consent.consent.send_otp_and_create_consent",
+					"host": ["{{base_url}}"],
+					"path": ["api", "method", "oan_a2c.consent.consent.send_otp_and_create_consent"]
+				},
+				"description": "Called when the agent enters the farmer's Fayda ID and clicks 'Send OTP'.\n\nWhat it does:\n1. Looks up farmer in OpenG2P by Fayda ID\n2. Creates a consent request in OpenG2P linked to the bank partner\n3. Sends OTP to the farmer's registered phone number\n4. Creates a Consent Request document in Frappe\n5. Returns transaction_id and masked phone for the UI\n\nRequired: fayda_id, partner\nOptional: loan_application (link to existing app), purpose\n\nAfter success → copy 'consent_request' value into the {{consent_request_id}} variable"
+			},
+			"response": [
+				{
+					"name": "Success",
+					"status": "OK",
+					"code": 200,
+					"originalRequest": {
+						"method": "POST",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"fayda_id\": \"FAYDA-ETH-123456\",\n    \"partner\": \"Cooperative Bank of Oromia\",\n    \"loan_application\": \"APP-2026-00001\",\n    \"purpose\": \"Loan for seeds and fertilizer\"\n}"
+						}
+					},
+					"body": "{\n    \"message\": {\n        \"status\": \"success\",\n        \"consent_request\": \"CR-2026-00001\",\n        \"openg2p_consent_id\": \"G2P-CONS-XXXXX\",\n        \"transaction_id\": \"TXN-OTP-99999\",\n        \"masked_phone\": \"+251911***001\",\n        \"message\": \"Consent created and OTP sent successfully\"\n    }\n}"
+				}
+			]
+		},
+		{
+			"name": "2. Verify OTP",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{jwt_token}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"consent_request\": \"{{consent_request_id}}\",\n    \"otp_code\": \"481481\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/method/oan_a2c.consent.consent.verify_otp",
+					"host": ["{{base_url}}"],
+					"path": ["api", "method", "oan_a2c.consent.consent.verify_otp"]
+				},
+				"description": "Called when the farmer reads the OTP from their phone and the agent enters it in the Fayda OTP Verification modal.\n\nWhat it does:\n1. Verifies OTP with OpenG2P\n2. Explicitly approves the consent request in Odoo (triggers webhook)\n3. Marks Consent Request status as 'Approved' in Frappe\n4. Generates a cryptographically signed consent receipt\n5. Updates Loan Application: consent_status='Approved', fayda_verified=1\n6. Directly fetches farmer data from OpenG2P and saves to consent_data field\n\nRequired: consent_request (from step 1 response), otp_code (entered by farmer)"
+			},
+			"response": [
+				{
+					"name": "Success",
+					"status": "OK",
+					"code": 200,
+					"originalRequest": {
+						"method": "POST",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"consent_request\": \"CR-2026-00001\",\n    \"otp_code\": \"481481\"\n}"
+						}
+					},
+					"body": "{\n    \"message\": {\n        \"status\": \"success\",\n        \"consent_request\": \"CR-2026-00001\",\n        \"consent_receipt\": \"eyJhbGciOiJIUzI1NiJ9...\",\n        \"message\": \"Consent approved successfully\"\n    }\n}"
+				}
+			]
+		},
+		{
+			"name": "3. Get Consent Data (Farmer Profile)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{jwt_token}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"application_id\": \"{{application_id}}\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/method/oan_a2c.api.loan_app_api.get_consent_data",
+					"host": ["{{base_url}}"],
+					"path": ["api", "method", "oan_a2c.api.loan_app_api.get_consent_data"]
+				},
+				"description": "Called after OTP verification to display the farmer's verified profile in the UI (green consent badge + pre-filled Farmer Details).\n\nWhat it does:\n- Reads consent_data stored in the Loan Application (saved by verify_otp or the OpenG2P webhook)\n- Falls back to Consent Request doc if consent_data is not yet available\n- Returns structured farmer_details ready for the UI to display\n\nRequired: application_id\n\nTwo possible responses:\n- Full data: consent approved + farmer profile returned\n- Warning: OTP done but webhook not fired yet (minimal data only)"
+			},
+			"response": [
+				{
+					"name": "Success - Full Consent Data",
+					"status": "OK",
+					"code": 200,
+					"originalRequest": {
+						"method": "POST",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"application_id\": \"APP-2026-00001\"\n}"
+						}
+					},
+					"body": "{\n    \"message\": {\n        \"status\": \"success\",\n        \"data\": {\n            \"application_id\": \"APP-2026-00001\",\n            \"consent_status\": \"Approved\",\n            \"farmer_details\": {\n                \"full_name\": \"Abebe Kebede\",\n                \"given_name\": \"Abebe\",\n                \"family_name\": \"Kebede\",\n                \"mobile_phone\": \"+251911000001\",\n                \"email\": \"abebe@example.com\",\n                \"gender\": \"Male\",\n                \"date_of_birth\": \"1990-05-15\",\n                \"fayda_id\": \"FAYDA-ETH-123456\",\n                \"consent_status\": \"Approved\",\n                \"consent_creation_request_id\": \"G2P-CONS-XXXXX\"\n            },\n            \"raw_consent_data\": {\n                \"source\": \"frappe_direct_fetch\",\n                \"event_type\": \"WEBSUB_INDIVIDUAL_UPDATED\",\n                \"consent\": { \"status\": \"approved\" },\n                \"farmer\": { \"id\": 42, \"name\": \"Abebe Kebede\" },\n                \"selected_data\": {\n                    \"farmer\": {\n                        \"given_name\": \"Abebe\",\n                        \"family_name\": \"Kebede\",\n                        \"email\": \"abebe@example.com\",\n                        \"phone_no\": [\"+251911000001\"]\n                    }\n                }\n            }\n        }\n    }\n}"
+				},
+				{
+					"name": "Warning - OTP done but webhook pending",
+					"status": "OK",
+					"code": 200,
+					"body": "{\n    \"message\": {\n        \"status\": \"success\",\n        \"data\": {\n            \"application_id\": \"APP-2026-00001\",\n            \"consent_status\": \"Approved\",\n            \"farmer_details\": {\n                \"full_name\": \"Abebe Kebede\",\n                \"fayda_id\": \"FAYDA-ETH-123456\",\n                \"consent_status\": \"Approved\",\n                \"openg2p_consent_id\": \"G2P-CONS-XXXXX\"\n            },\n            \"raw_consent_data\": null,\n            \"warning\": \"Webhook data not yet received from OpenG2P. Farmer profile fields will be limited until the webhook fires. Consent status: Approved\"\n        }\n    }\n}"
+				},
+				{
+					"name": "Error - OTP not yet done",
+					"status": "OK",
+					"code": 200,
+					"body": "{\n    \"message\": {\n        \"status\": \"error\",\n        \"error_code\": \"NO_CONSENT_DATA\",\n        \"message\": \"Consent data not available yet. Please complete OTP verification.\"\n    }\n}"
+				}
+			]
+		},
+		{
+			"name": "4. Receive Consent Data Webhook (OpenG2P → Frappe)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text",
+						"description": "No Authorization header needed — this endpoint is allow_guest=True for system-to-system calls"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"consent\": {\n        \"consent_creation_request_id\": \"G2P-CONS-XXXXX\",\n        \"status\": \"approved\"\n    },\n    \"farmer\": {\n        \"id\": 42,\n        \"name\": \"Abebe Kebede\"\n    },\n    \"selected_data\": {\n        \"farmer\": {\n            \"given_name\": \"Abebe\",\n            \"family_name\": \"Kebede\",\n            \"email\": \"abebe@example.com\",\n            \"phone_no\": [\"+251911000001\"]\n        }\n    }\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/method/oan_a2c.api.webhook_api.receive_consent_data",
+					"host": ["{{base_url}}"],
+					"path": ["api", "method", "oan_a2c.api.webhook_api.receive_consent_data"]
+				},
+				"description": "Called automatically by OpenG2P/Odoo when consent is approved. NOT called manually in production.\n\nUse this to manually simulate the webhook during testing if the OTP flow completed but consent_data was not saved (e.g. WebSub delivery failure).\n\nAuth: No Authorization header — allow_guest=True\n\nWhat it does:\n1. Matches consent_creation_request_id to a Consent Request doc in Frappe\n2. Saves full farmer data as JSON in loan_application.consent_data\n3. Sets consent_status='Approved' and fayda_verified=1 on the Loan Application\n4. Marks the Consent Request status as 'Approved'\n\nRequired in body: consent.consent_creation_request_id (must match an existing Consent Request)"
+			},
+			"response": [
+				{
+					"name": "Success",
+					"status": "OK",
+					"code": 200,
+					"body": "{\n    \"status\": \"success\",\n    \"message\": \"Data stored successfully\",\n    \"loan_application\": \"APP-2026-00001\",\n    \"consent_request\": \"CR-2026-00001\"\n}"
+				},
+				{
+					"name": "Error - Consent Request not found",
+					"status": "OK",
+					"code": 200,
+					"body": "{\n    \"status\": \"error\",\n    \"message\": \"Consent Request not found: G2P-CONS-XXXXX\"\n}"
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000"
+		},
+		{
+			"key": "jwt_token",
+			"value": "PASTE_YOUR_JWT_TOKEN_HERE"
+		},
+		{
+			"key": "consent_request_id",
+			"value": "CR-2026-XXXXX"
+		},
+		{
+			"key": "application_id",
+			"value": "APP-2026-XXXXX"
+		}
+	]
+}
